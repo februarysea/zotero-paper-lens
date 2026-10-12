@@ -15,7 +15,7 @@
 
 需要 **Zotero 9**，目前已在 macOS 的 Zotero 中验证。
 
-公开 Beta 安装包正在准备，将在 [Releases 页面](https://github.com/februarysea/zotero-paper-lens/releases) 提供。
+从 [Releases 页面](https://github.com/februarysea/zotero-paper-lens/releases)下载最新 Beta 安装包。
 
 1. 从 Releases 下载 `.xpi` 安装包。
 2. 打开 Zotero「工具 → 插件」，点击齿轮图标，选择「从文件安装插件」。

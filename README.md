@@ -15,7 +15,7 @@ Translate selected PDF text in Zotero with Codex models.
 
 Requires **Zotero 9**. Currently tested in Zotero on macOS.
 
-The public Beta download is being prepared and will be available on the [Releases page](https://github.com/februarysea/zotero-paper-lens/releases).
+Download the latest Beta from the [Releases page](https://github.com/februarysea/zotero-paper-lens/releases).
 
 1. Download the `.xpi` file from Releases.
 2. In Zotero, open **Tools → Plugins**, click the gear icon, and choose **Install Plugin From File**.
