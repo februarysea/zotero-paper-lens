@@ -23,7 +23,7 @@ def read_json(path):
 
 
 def write_json(path, value):
-    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def configuration(root=ROOT):
@@ -93,7 +93,7 @@ def prepare(root=ROOT):
     metadata_path = out / "release-meta.json"
     write_json(metadata_path, metadata)
     notes = out / "release-notes.md"
-    notes.write_text(config["notes"].read_text(encoding="utf-8"), encoding="utf-8")
+    notes.write_bytes(config["notes"].read_bytes())
     review = out / "RELEASE_REVIEW.md"
     review.write_text(
         "# Paper Lens " + config["version"] + " 发布确认\n\n"
@@ -109,7 +109,7 @@ def prepare(root=ROOT):
         "功能、验证范围、迁移方法和已知限制以发布说明为准。自动化工作流只创建草稿。\n\n"
         "确认后：推送这份源码 → 运行 CI → 创建并核对 Beta 草稿 → 手动公开发布 "
         "→ 下载验证已发布安装包 → 更新对应渠道清单。稳定版清单不接收 Beta。\n",
-        encoding="utf-8")
+        encoding="utf-8", newline="\n")
     return config, metadata, [artifact, checksum, metadata_path, candidate], notes
 
 
