@@ -46,4 +46,6 @@ Paper Lens 使用你的 ChatGPT 账号。登录时，请确认允许 Paper Lens 
 
 问题和建议可以提交到 [GitHub Issues](https://github.com/februarysea/zotero-paper-lens/issues)。反馈故障时，请附上 Zotero 版本、操作系统和复现步骤。
 
+本插件由 Codex 使用 GPT-6.1 Sol（Ultra）完成，[@februarysea](https://github.com/februarysea) 仅提供思路。
+
 [隐私说明](PRIVACY.md) · [MIT 许可](LICENSE)

@@ -46,4 +46,6 @@ You can sign out at any time from the same settings page.
 
 Report problems or suggestions in [GitHub Issues](https://github.com/februarysea/zotero-paper-lens/issues). For a bug report, include your Zotero version, operating system, and steps to reproduce it.
 
+Implemented by Codex using GPT-6.1 Sol (Ultra), with [@februarysea](https://github.com/februarysea) providing only the ideas.
+
 [Privacy](PRIVACY.md) · [MIT License](LICENSE)
