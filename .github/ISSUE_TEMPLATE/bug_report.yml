@@ -1,0 +1,33 @@
+name: Bug report / 问题反馈
+description: Report a Paper Lens translation, UI or authorization problem.
+title: '[Bug] '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿附带 auth.json、token、登录回调网址或私人论文内容。
+        Do not include credentials, callback URLs or private paper text. Security reports should follow SECURITY.md.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions / 版本
+      description: Paper Lens version, Zotero version and operating system.
+      placeholder: Paper Lens 0.2.3, Zotero 9.0.6, macOS
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps and actual result / 复现步骤与实际结果
+      description: Include a public or synthetic sample only if needed.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result / 预期结果
+  - type: input
+    id: error-code
+    attributes:
+      label: Non-sensitive error code / 非敏感错误码
+      description: Copy only the displayed error code, not credential or request payloads.

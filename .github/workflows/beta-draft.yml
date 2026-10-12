@@ -1,0 +1,58 @@
+name: Beta release draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact manifest version approved for this draft (for example 0.2.3)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paper-lens-beta-draft
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.13'
+      - name: Validate requested Beta version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node -e 'const p = require("./package.json"); if (p.version !== process.env.RELEASE_VERSION || p.paperLens.releaseChannel !== "beta") process.exit(1)'
+      - run: npm run check
+      - run: npm test
+      - run: python -m unittest discover -s tests -p 'test_*.py'
+      - run: python scripts/release.py prepare
+
+  draft:
+    needs: validate
+    if: github.repository == 'februarysea/zotero-paper-lens'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.13'
+      - name: Create a draft only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/release.py draft

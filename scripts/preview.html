@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN" data-color-scheme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paper Lens · 本地界面预览</title>
+  <link rel="stylesheet" href="../addon/content/style.css">
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #252830; background: #f4f5f7; }
+    :root[data-color-scheme="dark"] { color-scheme: dark; color: #e2e4e9; background: #1b1d21; }
+    body { margin: 0; padding: 30px; }
+    .preview-toolbar { max-width: 900px; margin: 0 auto 22px; }
+    .preview-toolbar h1 { font-size: 20px; margin: 0 0 7px; }
+    .preview-toolbar p { font-size: 13px; color: #727781; margin: 0 0 16px; line-height: 1.7; }
+    :root[data-color-scheme="dark"] .preview-toolbar p { color: #a1a6b0; }
+    .preview-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .preview-controls button, .preview-controls select { font: inherit; font-size: 12px; padding: 6px 9px; border: 1px solid #c7cbd2; background: #fff; color: #252830; border-radius: 5px; cursor: pointer; }
+    :root[data-color-scheme="dark"] .preview-controls button, :root[data-color-scheme="dark"] .preview-controls select { background: #24262a; border-color: #41444b; color: #e2e4e9; }
+    .preview-layout { display: flex; align-items: flex-start; gap: 26px; max-width: 900px; margin: 0 auto; }
+    .preview-reader { flex: 1; min-width: 0; background: #fff; padding: 36px; border: 1px solid #dedfe3; border-radius: 8px; }
+    :root[data-color-scheme="dark"] .preview-reader { background: #24262a; border-color: #41444b; }
+    .preview-reader small { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #727781; }
+    .preview-reader h2 { font-size: 23px; line-height: 1.4; margin: 12px 0 28px; }
+    .preview-reader p { font: 15px/1.95 Georgia, serif; margin: 0 0 20px; }
+    .preview-reader .highlight { background: #f9eec4; color: #252830; padding: 1px 0; }
+    .preview-reader .formula { font: 15px/2 ui-monospace, Menlo, monospace; background: #f4f5f7; padding: 10px 16px; overflow-wrap: anywhere; }
+    :root[data-color-scheme="dark"] .preview-reader .formula { background: #303238; }
+    .preview-pane { width: 324px; flex-shrink: 0; border: 1px solid #dedfe3; border-radius: 7px; background: #fff; overflow: hidden; }
+    :root[data-color-scheme="dark"] .preview-pane { background: #24262a; border-color: #41444b; }
+    .preview-pane-title { padding: 10px 12px 8px; border-bottom: 1px solid #dedfe3; font-size: 12px; font-weight: 600; }
+    :root[data-color-scheme="dark"] .preview-pane-title { border-color: #41444b; }
+    .preview-log { max-width: 900px; margin: 18px auto 0; font-size: 12px; line-height: 1.7; color: #727781; white-space: pre-wrap; }
+    :root[data-color-scheme="dark"] .preview-log { color: #a1a6b0; }
+    @media (max-width: 720px) { body { padding: 18px; } .preview-reader { display: none; } .preview-pane { max-width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="preview-toolbar">
+    <h1 id="preview-title">Paper Lens · 界面预览</h1>
+    <p id="preview-description">本页只使用虚构论文和模拟输出，直接加载插件的实际界面文件。所有操作均在本地运行，不读取论文、登录凭据，也不连接模型。</p>
+    <div class="preview-controls">
+      <select id="language" aria-label="Preview language">
+        <option value="zh-CN">中文</option>
+        <option value="en">English</option>
+      </select>
+      <select id="selection" aria-label="切换示例选区">
+        <option value="paragraph">段落选区</option>
+        <option value="formula">公式选区</option>
+        <option value="none">无选区</option>
+      </select>
+      <select id="width" aria-label="阅读侧栏宽度">
+        <option value="324">侧栏 324px</option>
+        <option value="280">侧栏 280px</option>
+        <option value="400">侧栏 400px</option>
+      </select>
+      <button id="theme" type="button">切换深色</button>
+      <button id="example" type="button">加载示例译文</button>
+      <button id="reset" type="button">重置预览</button>
+    </div>
+  </div>
+  <div class="preview-layout">
+    <article class="preview-reader">
+      <small>Synthetic paper · Interface fixture</small>
+      <h2>Context-aware weighting in a simple reader model</h2>
+      <p>We study a small illustrative model that combines evidence from several passages. The following text is an interface fixture and does not report a research result.</p>
+      <p><span class="highlight">We normalize each score over the available passages. This ensures that the weights sum to one, while preserving the relative relevance of each passage.</span></p>
+      <p>The temperature controls how strongly the model concentrates on the highest-scoring passage. A lower temperature produces a more concentrated distribution.</p>
+      <p class="formula">αᵢ = exp(sᵢ / τ) / ∑ⱼ exp(sⱼ / τ)</p>
+    </article>
+    <aside class="preview-pane">
+      <div class="preview-pane-title">Paper Lens</div>
+      <div id="panel"></div>
+    </aside>
+  </div>
+  <div id="log" class="preview-log" aria-live="polite">演示模式已就绪。可以测试选区翻译、停止和重试。</div>
+  <noscript>此界面预览需要 JavaScript。</noscript>
+  <script src="../addon/content/i18n.js"></script>
+  <script src="../addon/content/ui.js"></script>
+  <script>
+    "use strict";
+    const paragraph = "We normalize each score over the available passages. This ensures that the weights sum to one, while preserving the relative relevance of each passage.";
+    const paragraphZh = "我们对所有可用段落的得分进行归一化。这样可以确保权重之和为 1，同时保留各段落之间的相对相关性。";
+    const formula = "αᵢ = exp(sᵢ / τ) / ∑ⱼ exp(sⱼ / τ)";
+    const demo = {
+      "zh-CN": {
+        title: "Paper Lens · 界面预览", description: "本页只使用虚构论文和模拟输出，直接加载插件的实际界面文件。所有操作均在本地运行，不读取论文、登录凭据，也不连接模型。",
+        selectionAria: "切换示例选区", selections: ["段落选区", "公式选区", "无选区"], widthAria: "阅读侧栏宽度", width: "侧栏",
+        dark: "切换深色", light: "切换浅色", example: "加载示例译文", reset: "重置预览",
+        ready: "演示模式已就绪。可以测试选区翻译、停止和重试。", generating: "正在生成示例译文…",
+        completed: "示例翻译完成 · 未连接模型", stopped: "已停止示例输出", copied: "示例译文已复制",
+        clipboard: "浏览器未开放剪贴板；译文仍可手动选择复制。", save: "模拟保存笔记（未写入 Zotero）：\n",
+        saved: "示例笔记已显示在预览日志中", link: "演示链接（未访问）：",
+        request: "模拟翻译请求：Luna（可在 Zotero 设置中更改）",
+        paper: " · 虚构示例", coverage: "当前示例论文：3 个段落与 1 个公式；不读取任何真实论文。",
+        selectionCoverage: "选区 + 相邻段落 · 第 2 页 · 模拟上下文",
+        idle: "演示模式 · 未连接模型", formula: "`" + formula + "`",
+      },
+      en: {
+        title: "Paper Lens · Interface preview", description: "This local preview loads the actual plugin interface with a fictional paper and simulated output. It does not read papers or credentials, or connect to a model.",
+        selectionAria: "Choose sample selection", selections: ["Paragraph selection", "Formula selection", "No selection"], widthAria: "Reader sidebar width", width: "Sidebar",
+        dark: "Dark theme", light: "Light theme", example: "Load sample translation", reset: "Reset preview",
+        ready: "Demo ready. Try selection translation, stopping, and retrying.", generating: "Generating a sample translation…",
+        completed: "Sample translation complete · No model connected", stopped: "Sample output stopped", copied: "Sample translation copied",
+        clipboard: "Clipboard access is unavailable. Select and copy the translation manually.", save: "Simulated note save (nothing written to Zotero):\n",
+        saved: "Sample note displayed in the preview log", link: "Demo link (not opened): ",
+        request: "Simulated translation request: Luna (changeable in Zotero settings)",
+        paper: " · Fictional example", coverage: "Sample paper: 3 paragraphs and 1 formula. No real papers are read.",
+        selectionCoverage: "Selection + neighboring passages · Page 2 · Simulated context",
+        idle: "Demo mode · No model connected", formula: "`" + formula + "`",
+      },
+    };
+    let locale = "zh-CN";
+    let panel;
+    function p(key) { return demo[locale][key]; }
+    function sampleParagraph() { return locale === "en" ? paragraphZh : paragraph; }
+    let streamTimer = null;
+    let lastRequest = null;
+    const log = document.getElementById("log");
+    function stopStream() { if (streamTimer !== null) { clearInterval(streamTimer); streamTimer = null; } }
+    function start(request) {
+      stopStream();
+      lastRequest = request;
+      panel.setResponse("");
+      panel.setCanSave(false);
+      panel.setBusy(true);
+      panel.setCoverage(p("selectionCoverage"));
+      panel.setStatus(p("generating"));
+      log.textContent = p("request");
+      const chars = Array.from(request.selection && request.selection.text === formula
+        ? p("formula")
+        : locale === "zh-CN" ? paragraphZh : paragraph);
+      let cursor = 0;
+      streamTimer = setInterval(function () {
+        panel.appendResponse(chars.slice(cursor, cursor + 9).join(""));
+        cursor += 9;
+        if (cursor >= chars.length) {
+          stopStream();
+          panel.setBusy(false);
+          panel.setCanSave(true);
+          panel.setStatus(p("completed"), "success");
+        }
+      }, 30);
+    }
+    function createPanel() { return PaperLensUI.createPanel({
+      document,
+      container: document.getElementById("panel"),
+      i18n: PaperLensI18n.create(locale),
+      callbacks: {
+        onSubmit: start,
+        onCancel: function () { stopStream(); panel.setCanSave(false); panel.setBusy(false); panel.setStatus(p("stopped")); },
+        onRetry: function () { if (lastRequest) start(lastRequest); },
+        onCopy: async function (text) {
+          try { await navigator.clipboard.writeText(text); panel.setStatus(p("copied"), "success"); }
+          catch (_) { panel.setStatus(p("clipboard")); }
+        },
+        onSave: function (value) { log.textContent = p("save") + value.text; panel.setStatus(p("saved"), "success"); },
+        onOpenLink: function (url) { log.textContent = p("link") + url; },
+      },
+    }); }
+    function updateSelection() {
+      const type = document.getElementById("selection").value;
+      panel.setSelection(type === "none" ? null : { text: type === "formula" ? formula : sampleParagraph(), pageLabel: "2" });
+    }
+    function reset() {
+      stopStream();
+      lastRequest = null;
+      panel.setPaper({ title: "Context-aware weighting in a simple reader model" + p("paper"), attachmentKey: "DEMO0001" });
+      panel.setResponse("");
+      panel.setBusy(false);
+      panel.setCanSave(false);
+      panel.setDraft({ action: "translate", question: "" });
+      panel.setCoverage(p("coverage"));
+      panel.setStatus(p("idle"));
+      updateSelection();
+      log.textContent = p("ready");
+    }
+    function localizePreview() {
+      document.documentElement.lang = locale;
+      document.title = p("title");
+      document.getElementById("preview-title").textContent = p("title");
+      document.getElementById("preview-description").textContent = p("description");
+      document.querySelector(".preview-reader .highlight").textContent = sampleParagraph();
+      const selection = document.getElementById("selection");
+      selection.setAttribute("aria-label", p("selectionAria"));
+      Array.from(selection.options).forEach((option, index) => { option.textContent = p("selections")[index]; });
+      const width = document.getElementById("width");
+      width.setAttribute("aria-label", p("widthAria"));
+      Array.from(width.options).forEach((option) => { option.textContent = p("width") + " " + option.value + "px"; });
+      document.getElementById("theme").textContent = p(document.documentElement.dataset.colorScheme === "dark" ? "light" : "dark");
+      document.getElementById("example").textContent = p("example");
+      document.getElementById("reset").textContent = p("reset");
+    }
+    document.getElementById("language").addEventListener("change", function (event) {
+      stopStream();
+      panel.dispose();
+      locale = event.target.value;
+      panel = createPanel();
+      localizePreview();
+      reset();
+    });
+    document.getElementById("selection").addEventListener("change", updateSelection);
+    document.getElementById("width").addEventListener("change", function (event) { document.querySelector(".preview-pane").style.width = event.target.value + "px"; });
+    document.getElementById("theme").addEventListener("click", function (event) {
+      const dark = document.documentElement.dataset.colorScheme !== "dark";
+      document.documentElement.dataset.colorScheme = dark ? "dark" : "light";
+      event.target.textContent = p(dark ? "light" : "dark");
+    });
+    document.getElementById("example").addEventListener("click", function () {
+      document.getElementById("selection").value = "paragraph";
+      updateSelection();
+      panel.setDraft({ action: "translate", question: "" });
+      start({ action: "translate", question: "", selection: { text: sampleParagraph(), pageLabel: "2" } });
+    });
+    document.getElementById("reset").addEventListener("click", reset);
+    window.addEventListener("pagehide", function () { stopStream(); panel.dispose(); });
+    panel = createPanel();
+    localizePreview();
+    reset();
+  </script>
+</body>
+</html>

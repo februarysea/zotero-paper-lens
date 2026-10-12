@@ -1,0 +1,36 @@
+<vbox id="paperlens-preferences" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" xmlns:html="http://www.w3.org/1999/xhtml"
+      onload="Zotero_Preferences.getScope('paperlens-preferences').PaperLensPreferences.init(event)">
+  <linkset><html:link rel="localization" href="paper-lens.ftl"/></linkset>
+  <groupbox>
+    <html:p data-l10n-id="paper-lens-preferences-tagline"/>
+    <html:p data-l10n-id="paper-lens-preferences-intro"/>
+  </groupbox>
+  <groupbox>
+    <html:h3 data-l10n-id="paper-lens-preferences-auth-title"/>
+    <html:label for="paperlens-account" data-l10n-id="paper-lens-preferences-account-label"/>
+    <html:select id="paperlens-account" data-l10n-id="paper-lens-preferences-account-select" style="min-width: 200px; max-width: 100%;"/>
+    <hbox style="gap: 8px; margin-block-start: 8px;">
+      <html:button id="paperlens-sign-in" type="button" data-l10n-id="paper-lens-preferences-sign-in"/>
+      <html:button id="paperlens-sign-out" type="button" data-l10n-id="paper-lens-preferences-sign-out" disabled="disabled"/>
+      <html:button id="paperlens-auth-cancel" type="button" data-l10n-id="paper-lens-preferences-auth-cancel" hidden="hidden"/>
+      <html:button id="paperlens-usage" type="button" data-l10n-id="paper-lens-preferences-usage"/>
+    </hbox>
+    <html:p id="paperlens-auth-status" role="status" aria-live="polite" data-l10n-id="paper-lens-preferences-auth-disconnected"/>
+    <html:p data-l10n-id="paper-lens-preferences-auth-help" style="font-size: 0.9em;"/>
+  </groupbox>
+  <groupbox>
+    <html:label for="paperlens-model" data-l10n-id="paper-lens-preferences-model-label"/>
+    <hbox align="center">
+      <html:select id="paperlens-model" preference="extensions.paperlens.model" data-l10n-id="paper-lens-preferences-model-select" style="min-width: 200px;">
+        <html:option value="gpt-6-luna">gpt-6-luna</html:option>
+      </html:select>
+      <html:button id="paperlens-model-refresh" type="button" data-l10n-id="paper-lens-preferences-model-refresh" style="margin-inline-start: 8px;"/>
+    </hbox>
+    <html:p data-l10n-id="paper-lens-preferences-model-help"/>
+    <html:p id="paperlens-model-status" role="status" aria-live="polite" data-l10n-id="paper-lens-preferences-model-login" style="font-size: 0.9em;"/>
+  </groupbox>
+  <groupbox>
+    <checkbox id="paperlens-auto-translate-selection" preference="extensions.paperlens.autoTranslateSelection" data-l10n-id="paper-lens-preferences-auto-translate"/>
+    <html:p data-l10n-id="paper-lens-preferences-auto-translate-help" style="font-size: 0.9em;"/>
+  </groupbox>
+</vbox>

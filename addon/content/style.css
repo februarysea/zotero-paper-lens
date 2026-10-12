@@ -1,0 +1,83 @@
+/* All selectors are scoped to the reader panel. */
+.paper-lens {
+  --pl-text: #252830;
+  --pl-muted: #727781;
+  --pl-border: #dedfe3;
+  --pl-bg: #fff;
+  --pl-soft: #f4f5f7;
+  --pl-accent: #346457;
+  --pl-accent-soft: #eaf1ee;
+  --pl-error: #a92c36;
+  color: var(--pl-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 10px 12px 12px;
+  min-width: 0;
+  color-scheme: light dark;
+}
+.paper-lens *, .paper-lens *::before, .paper-lens *::after { box-sizing: border-box; }
+.paper-lens [hidden] { display: none !important; }
+.paper-lens-header { margin: 0 0 10px; }
+.paper-lens-paper { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paper-lens-actions { display: flex; gap: 3px; background: var(--pl-soft); padding: 3px; border-radius: 7px; }
+.paper-lens button, .paper-lens select, .paper-lens textarea { font: inherit; }
+.paper-lens button { cursor: pointer; }
+.paper-lens button:disabled, .paper-lens select:disabled { cursor: default; opacity: .48; }
+.paper-lens button:focus-visible, .paper-lens select:focus-visible, .paper-lens textarea:focus-visible,
+.paper-lens summary:focus-visible, .paper-lens-answer:focus-visible { outline: 2px solid var(--pl-accent); outline-offset: 2px; }
+.paper-lens-action { flex: 1; border: 0; background: transparent; color: var(--pl-muted); padding: 5px 8px; border-radius: 5px; }
+.paper-lens-action[aria-pressed="true"] { background: var(--pl-bg); color: var(--pl-accent); box-shadow: 0 1px 3px #0000000d; font-weight: 600; }
+.paper-lens-selection-chip { color: var(--pl-muted); font-size: 11px; margin: 8px 1px 5px; min-height: 17px; }
+.paper-lens-selection-chip[data-selected="true"] { color: var(--pl-accent); }
+.paper-lens-question { display: block; width: 100%; resize: vertical; min-height: 66px; max-height: 240px; padding: 8px 9px; border: 1px solid var(--pl-border); border-radius: 6px; background: var(--pl-bg); color: var(--pl-text); }
+.paper-lens-question::placeholder { color: var(--pl-muted); }
+.paper-lens-submit-row { display: flex; gap: 6px; align-items: center; margin-top: 7px; }
+.paper-lens-hint { font-size: 10px; color: var(--pl-muted); flex: 1; min-width: 0; }
+.paper-lens-button { border: 1px solid var(--pl-border); border-radius: 5px; color: var(--pl-text); background: var(--pl-bg); padding: 4px 9px; line-height: 1.4; white-space: nowrap; }
+.paper-lens-button:hover:not(:disabled) { background: var(--pl-soft); }
+.paper-lens-primary { border-color: var(--pl-accent); background: var(--pl-accent); color: #fff; }
+.paper-lens-primary:hover:not(:disabled) { background: var(--pl-accent); filter: brightness(1.08); }
+.paper-lens-status { font-size: 11px; color: var(--pl-muted); margin-top: 7px; overflow-wrap: anywhere; }
+.paper-lens-status:empty { display: none; }
+.paper-lens-status[data-kind="error"] { color: var(--pl-error); }
+.paper-lens-status[data-kind="success"] { color: var(--pl-accent); }
+.paper-lens-answer { margin: 12px 0 0; padding: 10px 0; border-top: 1px solid var(--pl-border); overflow: auto; max-height: min(55vh, 700px); min-height: 58px; overflow-wrap: anywhere; }
+.paper-lens-answer p { white-space: pre-wrap; margin: 0 0 10px; }
+.paper-lens-answer p:last-child { margin-bottom: 0; }
+.paper-lens-answer h2, .paper-lens-answer h3, .paper-lens-answer h4,
+.paper-lens-answer h5, .paper-lens-answer h6 { font-size: 13px; line-height: 1.5; margin: 14px 0 6px; font-weight: 650; }
+.paper-lens-answer h2 { font-size: 15px; }
+.paper-lens-answer > :first-child { margin-top: 0; }
+.paper-lens-answer ul, .paper-lens-answer ol { margin: 5px 0 10px; padding-left: 21px; }
+.paper-lens-answer li { padding-left: 1px; margin: 3px 0; white-space: pre-wrap; }
+.paper-lens-answer a { color: var(--pl-accent); text-decoration: underline; text-underline-offset: 2px; }
+.paper-lens-answer code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; padding: 1px 4px; border-radius: 3px; background: var(--pl-soft); white-space: pre-wrap; }
+.paper-lens-answer pre { overflow: auto; padding: 9px; border: 1px solid var(--pl-border); background: var(--pl-soft); border-radius: 5px; margin: 8px 0 10px; white-space: pre-wrap; }
+.paper-lens-answer pre code { padding: 0; background: transparent; }
+.paper-lens-answer blockquote { margin: 8px 0 10px; padding: 2px 0 2px 9px; border-left: 2px solid var(--pl-border); color: var(--pl-muted); white-space: pre-wrap; }
+.paper-lens-empty { color: var(--pl-muted); font-size: 12px; }
+.paper-lens-result-tools { display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 0 11px; }
+.paper-lens-result-tools .paper-lens-button { font-size: 11px; padding: 3px 8px; }
+.paper-lens-model-row { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--pl-border); padding-top: 10px; }
+.paper-lens-model-label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 11px; color: var(--pl-muted); }
+.paper-lens-model { min-width: 0; width: 100%; flex: 1; padding: 4px 6px; border: 1px solid var(--pl-border); border-radius: 5px; color: var(--pl-text); background: var(--pl-bg); font-size: 11px; }
+.paper-lens-refresh { font-size: 11px; padding: 4px 7px; }
+.paper-lens-context { margin-top: 10px; font-size: 11px; color: var(--pl-muted); }
+.paper-lens-context summary { cursor: pointer; user-select: none; padding: 2px 0; }
+.paper-lens-coverage { margin: 6px 0 8px; }
+.paper-lens-source-label { font-weight: 600; }
+.paper-lens-source { margin: 4px 0 0; padding: 7px 8px; border-left: 2px solid var(--pl-border); background: var(--pl-soft); max-height: 180px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--pl-text); }
+@media (prefers-color-scheme: dark) {
+  .paper-lens { --pl-text: #e2e4e9; --pl-muted: #a1a6b0; --pl-border: #41444b; --pl-bg: #24262a; --pl-soft: #303238; --pl-accent: #8bc7b2; --pl-accent-soft: #2c3e37; --pl-error: #ff9ba5; }
+  .paper-lens-primary { color: #18382c; }
+}
+/* Zotero may select its theme independently from the OS preference. */
+:root[data-color-scheme="dark"] .paper-lens, :root[data-theme="dark"] .paper-lens {
+  --pl-text: #e2e4e9; --pl-muted: #a1a6b0; --pl-border: #41444b; --pl-bg: #24262a; --pl-soft: #303238; --pl-accent: #8bc7b2; --pl-accent-soft: #2c3e37; --pl-error: #ff9ba5;
+}
+:root[data-color-scheme="dark"] .paper-lens-primary, :root[data-theme="dark"] .paper-lens-primary { color: #18382c; }
+:root[data-color-scheme="light"] .paper-lens, :root[data-theme="light"] .paper-lens {
+  --pl-text: #252830; --pl-muted: #727781; --pl-border: #dedfe3; --pl-bg: #fff; --pl-soft: #f4f5f7; --pl-accent: #346457; --pl-accent-soft: #eaf1ee; --pl-error: #a92c36;
+}
+:root[data-color-scheme="light"] .paper-lens-primary, :root[data-theme="light"] .paper-lens-primary { color: #fff; }

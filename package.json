@@ -1,0 +1,25 @@
+{
+  "name": "paper-lens-zotero",
+  "version": "0.2.3",
+  "private": true,
+  "description": "A small, native Zotero paper-reading companion",
+  "author": "februarysea",
+  "homepage": "https://github.com/februarysea/zotero-paper-lens",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/februarysea/zotero-paper-lens.git"
+  },
+  "bugs": { "url": "https://github.com/februarysea/zotero-paper-lens/issues" },
+  "paperLens": { "releaseChannel": "beta" },
+  "scripts": {
+    "test": "node --test",
+    "build": "python3 scripts/build.py",
+    "check": "node scripts/check.cjs",
+    "test:release": "python3 -m unittest discover -s tests -p \"test_*.py\"",
+    "release:prepare": "python3 scripts/release.py prepare",
+    "release:draft": "python3 scripts/release.py draft",
+    "release:promote": "python3 scripts/release.py promote"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
