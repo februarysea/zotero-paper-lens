@@ -212,7 +212,8 @@ var PaperLensUI = (function () {
       nodes.submit.disabled = state.busy || !canSubmit();
       nodes.cancel.hidden = !state.busy;
       nodes.cancel.disabled = !state.busy;
-      nodes.retry.disabled = state.busy || !state.paper || !state.submitted;
+      nodes.retry.textContent = t(!state.busy && state.canSave && state.response.trim() ? "ui.retranslate" : "ui.retry");
+      nodes.retry.disabled = state.busy || !state.paper || (!state.submitted && !state.response.trim());
       nodes.copy.disabled = state.busy || !state.response.trim();
       nodes.save.disabled = state.busy || !state.paper || !state.response.trim() || !state.canSave;
       nodes.answer.setAttribute("aria-busy", String(state.busy));
@@ -251,7 +252,7 @@ var PaperLensUI = (function () {
     nodes.answer.setAttribute("aria-label", t("ui.answer_aria"));
     const resultTools = add(nodes.root, make("div", "paper-lens-result-tools"));
     nodes.retry = button(resultTools, t("ui.retry"), "paper-lens-button", () => {
-      if (!state.busy && state.paper && state.submitted) invoke("onRetry");
+      if (!state.busy && state.paper && (state.submitted || state.response.trim())) invoke("onRetry");
     });
     nodes.copy = button(resultTools, t("ui.copy"), "paper-lens-button", () => {
       if (!state.busy && state.response.trim()) invoke("onCopy", state.response);

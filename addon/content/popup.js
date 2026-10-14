@@ -70,7 +70,7 @@ var PaperLensPopup = (function () {
       return node;
     }
     const translate = button("paper-lens-popup-translate", t("host.translate"), () => {
-      if (!state.busy) invoke("onTranslate");
+      if (!state.busy) invoke("onTranslate", { forceRefresh: state.complete });
     });
     const stop = button("paper-lens-popup-stop", t("ui.stop"), () => {
       if (state.busy) invoke("onCancel");
@@ -182,6 +182,7 @@ var PaperLensPopup = (function () {
       status.textContent = message;
       status.hidden = !message;
       status.setAttribute("data-kind", state.error ? "error" : state.complete ? "success" : "info");
+      translate.textContent = t(state.complete ? "ui.retranslate" : "host.translate");
       translate.disabled = state.busy;
       stop.hidden = !state.busy;
       stop.disabled = !state.busy;

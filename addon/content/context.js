@@ -189,8 +189,8 @@ var PaperLensContext = (function () {
       return { mode: "selection", chars: chars, totalChars: totalChars, label: label };
     }
 
-    function render(chosenBody, chosenAbstract) {
-      var material = Object.assign({}, metadata, {
+    function materialFor(chosenBody, chosenAbstract) {
+      return Object.assign({}, metadata, {
         abstract: chosenAbstract,
         selectedText: selection,
         // Offsets describe extraction characters, not pages, and are returned to the caller only.
@@ -198,6 +198,10 @@ var PaperLensContext = (function () {
           return { fragment: index + 1, text: item.text, truncated: Boolean(item.truncated) };
         })
       });
+    }
+
+    function render(chosenBody, chosenAbstract) {
+      var material = materialFor(chosenBody, chosenAbstract);
       return language.instructions + "\n" + language.task +
         "\n" + language.headings.task + "\n" + JSON.stringify({ action: "translate" }) +
         "\n" + language.headings.coverage + "\n" + JSON.stringify(coverageFor(chosenBody, chosenAbstract)) +
@@ -255,8 +259,24 @@ var PaperLensContext = (function () {
     if (body.some(function (item) { return item.truncated; })) warnings.push(language.warnings.fragmentsTruncated);
     var prompt = render(body, abstract);
     if (prompt.length > maxChars) fail("CONTEXT_BUDGET_EXCEEDED", language.errors.CONTEXT_BUDGET_EXCEEDED);
+    // Cache only the effective translation input. Page and extraction metadata can
+    // change without changing the quoted passage or its disambiguating context.
+    var material = materialFor(body, abstract);
     return {
       prompt: prompt,
+      cacheInput: {
+        language: language === LANGUAGES.zh ? "zh-CN" : "en",
+        promptVersion: language.instructions + "\n" + language.task,
+        selection: material.selectedText,
+        context: {
+          title: material.title,
+          authors: material.authors,
+          abstract: material.abstract,
+          fragments: material.text.map(function (item) {
+            return { text: item.text, truncated: item.truncated };
+          })
+        }
+      },
       coverage: coverageFor(body, abstract),
       source: source,
       historyTurns: 0,

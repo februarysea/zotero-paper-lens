@@ -7,8 +7,9 @@ Translate selected PDF text in Zotero with Codex models.
 ## Features
 
 - Read translations in the selection popup and Zotero's reading pane.
-- Copy translations, stop generation, retry, or save a translation as a paper note.
+- Copy translations, stop generation, retranslate, or save a translation as a paper note.
 - Turn on automatic translation when you want to translate by selecting text.
+- Reuse completed translations from a local cache, including after restarting Zotero.
 - Use English or Chinese UI that follows your Zotero language.
 
 ## Installation
@@ -24,13 +25,21 @@ Download the latest Beta from the [Releases page](https://github.com/februarysea
 
 ## Usage
 
-Open a PDF, select a passage, and click **Translate** in the selection popup. The translation appears as it is generated. You can copy it from the popup or use the reading pane to retry and save it to a note.
+Open a PDF, select a passage, and click **Translate** in the selection popup. The translation appears as it is generated. You can copy it from the popup or use the reading pane to retranslate and save it to a note.
 
 You can also open the pane through **Tools → Paper Lens** and click **Translate selection**.
 
 To translate automatically, enable **Translate automatically when text is selected** in **Zotero Settings → Paper Lens**. This option is off by default. When enabled, selecting text starts a translation automatically.
 
 The translation target follows the interface language: Chinese for a Chinese Zotero interface, English otherwise. PDFs must contain selectable text.
+
+## Translation cache
+
+Completed translations are saved automatically on this device. When you select the same passage in the same paper again, Paper Lens can show the saved translation, marked **Cached**, without using your model allowance again. The cache is available after restarting Zotero and is not synced between devices.
+
+Click **Retranslate** for a fresh translation. Changing the model or translation language also generates a new result. Failed, cancelled and incomplete translations are not saved, and caching does not create Zotero notes.
+
+To remove saved translations, open **Zotero Settings → Paper Lens → Clear translation cache**. Paper Lens keeps up to 1,000 entries and about 10 MB, removing older, less recently used entries as needed.
 
 ## ChatGPT account and model
 

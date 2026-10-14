@@ -67,3 +67,14 @@ test("known errors and HTTP status remain useful while unknown exception content
   assert.equal(en.error("当前文库不可编辑。", "host.save_failed"), "This library is read-only.");
   assert.equal(I18n.create("zh").error({ code: "EMPTY_SELECTION" }), "请先在当前 PDF 中选择要翻译的文字。");
 });
+
+test("cache and retranslation messages are localized without exposing cache exception content", () => {
+  for (const locale of ["zh-CN", "en"]) {
+    const i18n = I18n.create(locale);
+    for (const key of ["ui.retranslate", "host.cached", "host.cache_save_failed", "error.CACHE_CLEAR_FAILED"]) {
+      assert.notEqual(i18n.t(key), key);
+    }
+    assert.equal(i18n.error({ code: "CACHE_CLEAR_FAILED", message: "private-file/credential-secret" }), i18n.t("error.CACHE_CLEAR_FAILED"));
+    assert.doesNotMatch(i18n.error({ code: "CACHE_CLEAR_FAILED", message: "credential-secret" }), /credential-secret/);
+  }
+});

@@ -20,9 +20,9 @@ function deferred() { let resolve, reject; const promise = new Promise((a, b) =>
 function connectedAccount(id, label) {
   return { accounts: [{ id, label, connected: true, planEnabled: true }], activeID: id, connected: true, planEnabled: true };
 }
-function harness({ selected, read, auth, getAuthState, signIn, signOut, switchAccount, cancelSignIn } = {}) {
+function harness({ selected, read, auth, getAuthState, signIn, signOut, switchAccount, cancelSignIn, clearTranslationCache } = {}) {
   const root = new Element(), win = new Element('window');
-  const ids = ['model', 'model-refresh', 'model-status', 'account', 'auth-status', 'sign-in', 'sign-out', 'auth-cancel', 'usage'];
+  const ids = ['model', 'model-refresh', 'model-status', 'account', 'auth-status', 'sign-in', 'sign-out', 'auth-cancel', 'usage', 'cache-clear', 'cache-status'];
   const elements = new Map([['paperlens-preferences', root], ...ids.map(id => ['paperlens-' + id, new Element(['model', 'account'].includes(id) ? 'select' : 'div')])]);
   const nodes = Object.fromEntries(ids.map(id => [id, elements.get('paperlens-' + id)]));
   const prefs = new Map([[MODEL_PREF, selected]]), writes = [], calls = [], reads = [], authReads = [];
@@ -35,6 +35,7 @@ function harness({ selected, read, auth, getAuthState, signIn, signOut, switchAc
       signOut: async () => { calls.push(['signOut']); if (signOut) return signOut(); state.connected = false; state.planEnabled = false; return { remoteRevoked: true }; },
       switchAccount: async id => { calls.push(['switch', id]); if (switchAccount) return switchAccount(id); state.activeID = id; return state; },
       cancelSignIn: () => { calls.push(['cancel']); if (cancelSignIn) return cancelSignIn(); state.signingIn = false; }, openUsage: () => { calls.push(['usage']); },
+      clearTranslationCache: async () => { calls.push(['clearCache']); return clearTranslationCache?.(); },
       localizeError: error => 'Safe ' + (['AUTH_DECLINED', 'AUTH_CANCELLED', 'AUTH_NETWORK'].includes(error.code) ? error.code : 'error') } };
   nodes.model.addEventListener('change', () => Zotero.Prefs.set(MODEL_PREF, nodes.model.value));
   const controller = Preferences.create({ document, Zotero });
@@ -63,6 +64,59 @@ test('automatic selection translation defaults off and uses a localized native p
     assert.match(text, /^paper-lens-preferences-auto-translate =\n\s+\.label = \S/m);
     assert.match(text, /^paper-lens-preferences-auto-translate-help = .+ChatGPT.+/m);
   }
+});
+
+test('cache settings offer localized clearing without adding a cache switch or changing automatic translation', () => {
+  const source = fs.readFileSync(require.resolve('../addon/content/preferences.xhtml'), 'utf8');
+  assert.match(source, /id="paperlens-cache-clear" type="button" data-l10n-id="paper-lens-preferences-cache-clear"/);
+  assert.match(source, /id="paperlens-cache-status" role="status" aria-live="polite"/);
+  assert.equal([...source.matchAll(/<checkbox /g)].length, 1, 'only the existing auto-translate checkbox is present');
+  for (const locale of ['en-US', 'zh-CN']) {
+    const text = fs.readFileSync('addon/locale/' + locale + '/paper-lens.ftl', 'utf8');
+    assert.match(text, /^paper-lens-preferences-cache-help = .*1,000.*10 MB/m);
+    assert.match(text, /^paper-lens-preferences-cache-clear = \S/m);
+  }
+});
+
+test('clearing the cache prevents repeated clicks and does not read auth, refresh models, or write preferences', async () => {
+  const pending = deferred();
+  const h = harness({ clearTranslationCache: () => pending.promise }); await h.controller.init();
+  const authReads = h.authReads.length, modelReads = h.reads.length;
+  const clearing = h.nodes['cache-clear'].fire('click');
+  assert.equal(h.nodes['cache-clear'].disabled, true);
+  assert.equal(h.nodes['cache-status'].attributes['data-l10n-id'], 'paper-lens-preferences-cache-clearing');
+  await h.nodes['cache-clear'].fire('click');
+  // A synthetic dispatch must honor the guard even when native disabled clicks are bypassed.
+  await h.nodes['cache-clear'].listeners.get('click')[0]();
+  assert.deepEqual(h.calls, [['clearCache']]);
+  pending.resolve({}); await clearing;
+  assert.equal(h.nodes['cache-clear'].disabled, false);
+  assert.equal(h.nodes['cache-status'].attributes['data-l10n-id'], 'paper-lens-preferences-cache-cleared');
+  assert.equal(h.authReads.length, authReads); assert.equal(h.reads.length, modelReads);
+  assert.deepEqual(h.writes, []); h.controller.dispose();
+});
+
+test('a failed cache clear exposes only a localized message and allows retry', async () => {
+  let attempts = 0;
+  const h = harness({ clearTranslationCache: async () => {
+    if (++attempts === 1) throw new Error('private path /Users/synthetic/token=secret');
+  } });
+  await h.controller.init(); await h.nodes['cache-clear'].fire('click');
+  assert.equal(h.nodes['cache-status'].attributes['data-l10n-id'], 'paper-lens-preferences-cache-clear-failed');
+  assert.doesNotMatch(h.nodes['cache-status'].textContent, /private|token|secret/);
+  assert.equal(h.nodes['cache-clear'].disabled, false);
+  await h.nodes['cache-clear'].fire('click');
+  assert.equal(h.nodes['cache-status'].attributes['data-l10n-id'], 'paper-lens-preferences-cache-cleared');
+  assert.equal(attempts, 2); h.controller.dispose();
+});
+
+test('a disposed settings pane ignores late cache-clear completion and removes its listener', async () => {
+  const pending = deferred(); const h = harness({ clearTranslationCache: () => pending.promise }); await h.controller.init();
+  const clearing = h.nodes['cache-clear'].fire('click'); h.controller.dispose();
+  pending.resolve(); await clearing;
+  assert.equal(h.nodes['cache-status'].attributes['data-l10n-id'], 'paper-lens-preferences-cache-clearing');
+  assert.equal(h.nodes['cache-clear'].listeners.get('click').length, 0);
+  assert.deepEqual(h.calls, [['clearCache']]);
 });
 
 test('disconnected settings show login instructions, default to actual Luna ID, and write no model preferences', async () => {

@@ -98,6 +98,29 @@ test("translate, stop and complete-copy callbacks respect their state guards", (
   h.popup.dispose();
 });
 
+test("complete translations show Retranslate and explicitly bypass the cache; ordinary and partial requests do not", () => {
+  for (const locale of ["zh-CN", "en-US"]) {
+    const requests = [];
+    const h = harness({ onTranslate: request => requests.push(request) }, locale);
+    const translate = h.find("paper-lens-popup-translate");
+    translate.fire("click");
+    assert.deepEqual(requests, [{ forceRefresh: false }]);
+    h.popup.render({ text: "Complete cached translation", complete: true, status: I18n.create(locale).t("host.cached") });
+    assert.equal(translate.textContent, I18n.create(locale).t("ui.retranslate"));
+    assert.equal(h.find("paper-lens-popup-status").textContent, I18n.create(locale).t("host.cached"));
+    translate.fire("click");
+    assert.deepEqual(requests.at(-1), { forceRefresh: true });
+    h.popup.render({ busy: true });
+    translate.listeners.get("click")();
+    assert.equal(requests.length, 2);
+    h.popup.render({ text: "Partial translation", busy: false, complete: false });
+    assert.equal(translate.textContent, I18n.create(locale).t("host.translate"));
+    translate.fire("click");
+    assert.deepEqual(requests.at(-1), { forceRefresh: false });
+    h.popup.dispose();
+  }
+});
+
 test("model markup remains literal plain text with no created model elements", () => {
   const h = harness();
   const payload = '<script>alert(1)</script><img src="x" onerror="steal()"> **译文**\n[open](javascript:evil())';

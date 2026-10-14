@@ -25,6 +25,8 @@ var PaperLensMain = (function () {
     const setPref = (key, value) => Zotero.Prefs.set(PREF + key, value, true);
     const logError = (e) => Zotero.debug("[Paper Lens] "
       + (typeof e?.code === "string" && t("error." + e.code) !== "error." + e.code ? e.code : "Error"));
+    const translationCache = env.PaperLensCache.createCache({ IOUtils, PathUtils, cryptoImpl: env.crypto,
+      TextEncoderImpl: env.TextEncoder, onError: (code) => Zotero.debug("[Paper Lens] " + code) });
     const autoTranslator = env.PaperLensSelection.create({
       isEnabled: () => Zotero.Prefs.get(PREF + "autoTranslateSelection", true) === true,
       isCurrent: currentReader,
@@ -111,6 +113,11 @@ var PaperLensMain = (function () {
       activeRun?.controller.abort(); await backend?.disconnect?.();
       return getAuthProvider().signOut();
     }
+    async function clearTranslationCache() {
+      if (!await translationCache.clear()) {
+        throw Object.assign(new Error(t("error.CACHE_CLEAR_FAILED")), { code: "CACHE_CLEAR_FAILED" });
+      }
+    }
     function readerForBody(body) {
       const doc = body.ownerDocument;
       const tabID = body.closest("item-details")?.tabID;
@@ -191,7 +198,7 @@ var PaperLensMain = (function () {
       const callbacks = {
         onSubmit: (request) => submit(binding, request),
         onCancel: () => { autoTranslator.cancelPending(); if (activeRun?.binding === binding) activeRun.controller.abort(); },
-        onRetry: () => record.lastRequest && submit(binding, record.lastRequest),
+        onRetry: () => record.lastRequest && submit(binding, record.lastRequest, { forceRefresh: true }),
         onCopy: (text) => copy(text),
         onSave: () => save(binding),
         onOpenLink: (url) => Zotero.launchURL(url),
@@ -206,7 +213,7 @@ var PaperLensMain = (function () {
       panel.setCanSave?.(record.responseIsComplete);
       panel.setStatus(t("host.idle"));
     }
-    async function submit(binding, request, { automatic = false, isCurrent = () => true } = {}) {
+    async function submit(binding, request, { automatic = false, forceRefresh = false, isCurrent = () => true } = {}) {
       if (!binding || stopped || !bindings.has(binding.body)) return;
       if (request.action !== "translate") { binding.panel.showError(t("error.INVALID_ACTION")); return; }
       if (!automatic) autoTranslator.cancelPending();
@@ -222,7 +229,8 @@ var PaperLensMain = (function () {
       const display = { selectionKey: selectionKey(selection), text: "", status: t("host.preparing"),
         error: "", busy: true, complete: false };
       record.popupState = display;
-      const run = { binding, record, controller, done, automatic, reader: readerForBody(binding.body),
+      const run = { binding, record, controller, done, automatic, cacheGeneration: translationCache.generation,
+        reader: readerForBody(binding.body),
         selectionKey: display.selectionKey };
       activeRun = run;
       record.draft = { action: "translate", question: "" };
@@ -242,15 +250,29 @@ var PaperLensMain = (function () {
         const built = env.PaperLensContext.buildPrompt({ action: "translate",
           selection: selection.text || "", paper, locale: i18n.locale });
         binding.panel.setCoverage(built.coverage.label);
-        binding.panel.setStatus(t("host.answering"));
-        updatePopup(record, display, { status: t("host.answering") });
-        const result = await getBackend().run({ prompt: built.prompt, model, signal: controller.signal,
-          onDelta: (delta) => {
-            if (activeRun !== run || controller.signal.aborted || bindings.get(binding.body) !== binding) return;
-            received += delta; record.response = received;
-            updatePopup(record, display, { text: received });
-            if (bindings.get(binding.body) === binding) binding.panel.appendResponse(delta);
-          } });
+        const cacheKey = await translationCache.makeKey({ paperKey: record.key, model,
+          language: built.cacheInput.language, promptVersion: built.cacheInput.promptVersion,
+          selection: built.cacheInput.selection, context: built.cacheInput.context });
+        const cached = !forceRefresh && cacheKey && run.cacheGeneration === translationCache.generation
+          ? await translationCache.get(cacheKey) : null;
+        if (!isCurrent()) controller.abort();
+        if (controller.signal.aborted || activeRun !== run || bindings.get(binding.body) !== binding) {
+          throw Object.assign(new Error(t("host.cancelled")), { name: "AbortError" });
+        }
+        const cacheHit = !!cached && run.cacheGeneration === translationCache.generation;
+        let result;
+        if (cacheHit) result = { text: cached.text };
+        else {
+          binding.panel.setStatus(t("host.answering"));
+          updatePopup(record, display, { status: t("host.answering") });
+          result = await getBackend().run({ prompt: built.prompt, model, signal: controller.signal,
+            onDelta: (delta) => {
+              if (activeRun !== run || controller.signal.aborted || bindings.get(binding.body) !== binding) return;
+              received += delta; record.response = received;
+              updatePopup(record, display, { text: received });
+              if (bindings.get(binding.body) === binding) binding.panel.appendResponse(delta);
+            } });
+        }
         if (controller.signal.aborted || activeRun !== run || bindings.get(binding.body) !== binding) {
           throw Object.assign(new Error(t("host.cancelled")), { name: "AbortError" });
         }
@@ -260,11 +282,20 @@ var PaperLensMain = (function () {
           attachmentID: binding.attachment.id, parentID: binding.attachment.parentID,
           libraryID: binding.attachment.libraryID, coverage: built.coverage.label };
         record.responseIsComplete = true;
-        updatePopup(record, display, { text: result.text, status: t("host.complete"), busy: false, complete: true });
+        const status = t(cacheHit ? "host.cached" : "host.complete");
+        updatePopup(record, display, { text: result.text, status, busy: false, complete: true });
         if (bindings.get(binding.body) === binding) {
           binding.panel.setResponse(result.text);
-          binding.panel.setStatus(t("host.complete"), "success");
+          binding.panel.setStatus(status, "success");
           binding.panel.setCanSave?.(true);
+        }
+        if (!cacheHit && cacheKey && run.cacheGeneration === translationCache.generation) {
+          const saved = await translationCache.put(cacheKey, { text: result.text, original: selection.text }, run.cacheGeneration);
+          if (!saved && !controller.signal.aborted && bindings.get(binding.body) === binding
+            && record.popupState === display && run.cacheGeneration === translationCache.generation) {
+            binding.panel.setStatus(t("host.cache_save_failed"));
+            updatePopup(record, display, { status: t("host.cache_save_failed") });
+          }
         }
       } catch (e) {
         // Failed/partial responses never replace the last completed note source.
@@ -366,10 +397,10 @@ var PaperLensMain = (function () {
       const key = selectionKey(selection);
       const popup = env.PaperLensPopup.create({ document: doc, container: row, i18n,
         setTimeout: env.setTimeout, clearTimeout: env.clearTimeout,
-        onTranslate: () => {
+        onTranslate: ({ forceRefresh = false } = {}) => {
           autoTranslator.cancelPending();
           return openReader(reader, "translate", selection, true,
-            { isCurrent: () => popupBindings.get(reader)?.popup === popup && currentReader(reader) }).catch((error) => {
+            { forceRefresh, isCurrent: () => popupBindings.get(reader)?.popup === popup && currentReader(reader) }).catch((error) => {
             logError(error);
             if (popupBindings.get(reader)?.popup !== popup) return;
             const display = { selectionKey: key, text: "", status: "", error: i18n.error(error, "host.request_failed"),
@@ -473,12 +504,13 @@ var PaperLensMain = (function () {
       for (const binding of bindings.values()) binding.panel.dispose();
       bindings.clear(); records.clear(); textCache.clear();
       await backend?.disconnect?.(); backend = null;
+      await translationCache.flush();
       await authProvider?.dispose?.(); authProvider = null;
     }
     return { startup, shutdown, attachWindow, detachWindow, openReader,
       get paneID() { return paneID; }, get panelCount() { return bindings.size; },
       // Small integration-test seam: synthetic paper requests can exercise the backend safely.
-      getBackend, getModelOptions, getAuthState, signIn, cancelSignIn, switchAccount, signOut,
+      getBackend, getModelOptions, getAuthState, signIn, cancelSignIn, switchAccount, signOut, clearTranslationCache,
       openUsage: () => Zotero.launchURL("https://chatgpt.com/settings/usage"),
       localizeError: (error) => i18n.error(error), version };
   }

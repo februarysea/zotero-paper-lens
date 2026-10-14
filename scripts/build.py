@@ -7,7 +7,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = ["bootstrap.js", "prefs.js", "manifest.json", "content/main.js", "content/i18n.js",
-            "content/settings.js", "content/auth.js", "content/codex.js", "content/context.js", "content/ui.js",
+            "content/settings.js", "content/auth.js", "content/codex.js", "content/context.js", "content/cache.js", "content/ui.js",
             "content/popup.js", "content/selection.js", "content/style.css", "content/preferences.js",
             "content/preferences.xhtml", "content/oauth.js", "content/loopback.js"]
 ALLOWED_CONTENT = {".js", ".css", ".svg", ".xhtml", ".png", ".jpg", ".webp"}

@@ -5,6 +5,21 @@ const I18n = require("../addon/content/i18n.js");
 const Selection = require("../addon/content/selection.js");
 
 function clone(value) { return structuredClone(value); }
+function cacheHarness() {
+  const entries = new Map(), puts = [], keys = [];
+  const cache = { generation: 0, entries, puts, keys, failWrites: false,
+    async makeKey(input) { keys.push(clone(input)); return JSON.stringify(input); },
+    async get(key) { return clone(entries.get(key) || null); },
+    async put(key, value, expected) {
+      puts.push({ key, value: clone(value), expected });
+      if (expected !== cache.generation || cache.failWrites) return false;
+      entries.set(key, clone(value)); return true;
+    },
+    async clear() { cache.generation++; entries.clear(); return true; },
+    async flush() { return true; },
+  };
+  return cache;
+}
 function element() {
   return {
     style: {}, children: [], listeners: new Map(), attributes: {}, isConnected: true,
@@ -44,7 +59,7 @@ class Panel {
   dispose() { this.disposed = true; }
 }
 
-async function harness(t, { automaticShutdown = true, locale = "zh-CN", initialModelPref } = {}) {
+async function harness(t, { automaticShutdown = true, locale = "zh-CN", initialModelPref, cacheFactory } = {}) {
   const events = new Map();
   const panels = [];
   const popups = [], copied = [];
@@ -108,6 +123,9 @@ async function harness(t, { automaticShutdown = true, locale = "zh-CN", initialM
     setTimeout: (callback, delay) => { const id = ++timerID; timers.set(id, { callback, delay }); return id; },
     clearTimeout: (id) => timers.delete(id),
     PaperLensSelection: Selection,
+    PaperLensCache: { createCache: cacheFactory || (() => ({ generation: 0,
+      makeKey: async () => null, get: async () => null, put: async () => true,
+      clear: async () => true, flush: async () => true })) },
     PaperLensPopup: { create: (options) => {
       const popup = { root: options.container, options, state: {}, writes: [], disposed: false,
         render(state) { if (!this.disposed) { Object.assign(this.state, clone(state)); this.writes.push(clone(this.state)); } },
@@ -131,7 +149,9 @@ async function harness(t, { automaticShutdown = true, locale = "zh-CN", initialM
     PaperLensUI: { createPanel: (options) => { const panel = new Panel(options); panels.push(panel); return panel; } },
     PaperLensContext: { buildPrompt: (input) => {
       prompts.push(clone(input));
-      return { prompt: "synthetic-prompt", coverage: { label: "Synthetic context only" }, source: { title: input.paper.title } };
+      return { prompt: "synthetic-prompt", coverage: { label: "Synthetic context only" }, source: { title: input.paper.title },
+        cacheInput: { language: input.locale, promptVersion: "synthetic-rule-v1", selection: input.selection,
+          context: { title: input.paper.title, abstract: input.paper.abstract, text: input.paper.text } } };
     } },
     Zotero: {
       locale,
@@ -788,4 +808,109 @@ test("automatic panel-opening errors are also shown in the selection popup", asy
   assert.match(h.popups.at(-1).state.error, /请求失败/);
   assert.doesNotMatch(h.popups.at(-1).state.error, /Internal|detail/);
   assert.equal(h.backendCalls.length, 0);
+});
+
+test("a completed translation is cached and reused in both views without another backend call", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { cacheFactory: () => cache });
+  const panel = h.render(); h.select(0, "1", "A recurring source"); h.succeed("Cached complete translation");
+  await panel.callbacks.onSubmit({ action: "translate", selection: clone(panel.selection) });
+  assert.equal(cache.entries.size, 1);
+  assert.equal(cache.puts[0].value.original, "A recurring source");
+  h.select(8, "9", "A recurring source");
+  await panel.callbacks.onSubmit({ action: "translate", selection: clone(panel.selection) });
+  assert.equal(h.backendCalls.length, 1);
+  assert.equal(panel.response, "Cached complete translation");
+  assert.equal(h.popups.at(-1).state.text, panel.response);
+  assert.equal(h.popups.at(-1).state.status, "已缓存");
+  assert.equal(panel.statuses.at(-1).text, "已缓存");
+  assert.equal(panel.canSave, true);
+  await panel.callbacks.onSave(); assert.match(h.notes[0].html, /\?page=9/);
+  assert.equal(cache.keys.at(-1).paperKey, "1:DEMO0001");
+});
+
+test("a new plugin instance uses the stored translation without creating an auth provider or backend", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { automaticShutdown: false, cacheFactory: () => cache });
+  let panel = h.render(); h.succeed("Persistent translation");
+  await panel.callbacks.onSubmit({ action: "translate", selection: { text: "Source across restarts" } });
+  await h.app.shutdown();
+  const restarted = await harness(t, { cacheFactory: () => cache }); panel = restarted.render();
+  await panel.callbacks.onSubmit({ action: "translate", selection: { text: "Source across restarts" } });
+  assert.equal(panel.response, "Persistent translation");
+  assert.equal(restarted.backendCalls.length, 0);
+  assert.equal(restarted.authCreates, 0);
+  assert.equal(restarted.backendCreates, 0);
+});
+
+test("retranslate bypasses and replaces the cached translation from both controls", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { cacheFactory: () => cache });
+  h.readerWindow(); const panel = h.render(); h.select(0, "1", "Source to revise");
+  h.succeed("Original translation"); await panel.callbacks.onSubmit({ action: "translate", selection: clone(panel.selection) });
+  h.succeed("Revised from sidebar"); await panel.callbacks.onRetry();
+  assert.equal(h.backendCalls.length, 2); assert.equal([...cache.entries.values()][0].text, "Revised from sidebar");
+  h.succeed("Revised from popup"); await h.popups.at(-1).options.onTranslate({ forceRefresh: true });
+  assert.equal(h.backendCalls.length, 3); assert.equal([...cache.entries.values()][0].text, "Revised from popup");
+  await panel.callbacks.onSubmit({ action: "translate", selection: clone(panel.selection) });
+  assert.equal(h.backendCalls.length, 3); assert.equal(panel.response, "Revised from popup");
+});
+
+test("model, paper and effective background changes require new translations", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { cacheFactory: () => cache }); let panel = h.render();
+  const request = { action: "translate", selection: { text: "form" } };
+  h.succeed("Original meaning"); await panel.callbacks.onSubmit(request);
+  h.prefs.set("extensions.paperlens.model", "gpt-6-sol");
+  h.succeed("Another model"); await panel.callbacks.onSubmit(request);
+  h.first.attachmentText = "A revised and different background."; h.first.dateModified = "revision-2";
+  h.succeed("Another background"); await panel.callbacks.onSubmit(request);
+  h.reader.itemID = h.second.id; panel = h.render();
+  h.succeed("Another paper"); await panel.callbacks.onSubmit(request);
+  assert.equal(h.backendCalls.length, 4); assert.equal(cache.entries.size, 4);
+});
+
+test("failed and cancelled partial translations do not enter the cache", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { cacheFactory: () => cache }); const panel = h.render();
+  h.failPartial("An unfinished result");
+  await panel.callbacks.onSubmit({ action: "translate", selection: { text: "Failing source" } });
+  assert.equal(cache.entries.size, 0); assert.equal(cache.puts.length, 0);
+  let started; const whenStarted = new Promise(resolve => { started = resolve; });
+  h.behaviors.push(options => new Promise((resolve, reject) => {
+    options.onDelta("Cancelled output"); started();
+    options.signal.addEventListener("abort", () => reject(Object.assign(new Error("Cancelled"), { name: "AbortError" })));
+  }));
+  const request = panel.callbacks.onSubmit({ action: "translate", selection: { text: "Cancelled source" } });
+  await whenStarted; panel.callbacks.onCancel(); await request;
+  assert.equal(cache.puts.length, 0);
+});
+
+test("clearing cache prevents an already-running request from repopulating it", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { cacheFactory: () => cache }); const panel = h.render();
+  let started, finish; const whenStarted = new Promise(resolve => { started = resolve; });
+  h.behaviors.push(options => new Promise(resolve => { started(); finish = resolve; }));
+  const request = panel.callbacks.onSubmit({ action: "translate", selection: { text: "Source before clear" } });
+  await whenStarted; await h.app.clearTranslationCache(); finish({ text: "Completed after clear" }); await request;
+  assert.equal(cache.puts.length, 0); assert.equal(cache.entries.size, 0);
+  assert.equal(panel.response, "Completed after clear"); assert.equal(panel.canSave, true);
+  h.succeed("A new request can cache again");
+  await panel.callbacks.onSubmit({ action: "translate", selection: { text: "Source after clear" } });
+  assert.equal(cache.entries.size, 1);
+});
+
+test("a pending cache lookup cannot restore a hit after cache is cleared", async (t) => {
+  const cache = cacheHarness(); const h = await harness(t, { cacheFactory: () => cache }); const panel = h.render();
+  let readStarted, finishRead; const whenReading = new Promise(resolve => { readStarted = resolve; });
+  cache.get = () => { readStarted(); return new Promise(resolve => { finishRead = resolve; }); };
+  h.succeed("New result after clearing");
+  const request = panel.callbacks.onSubmit({ action: "translate", selection: { text: "Source while clearing" } });
+  await whenReading; await h.app.clearTranslationCache(); finishRead({ text: "Old cached text", original: "Source while clearing" }); await request;
+  assert.equal(h.backendCalls.length, 1); assert.equal(panel.response, "New result after clearing");
+  assert.equal(cache.entries.size, 0);
+});
+
+test("cache write failure preserves the complete translation and note provenance", async (t) => {
+  const cache = cacheHarness(); cache.failWrites = true;
+  const h = await harness(t, { cacheFactory: () => cache }); const panel = h.render(); h.select(3, "4", "A valid source");
+  h.succeed("A completed translation");
+  await panel.callbacks.onSubmit({ action: "translate", selection: clone(panel.selection) });
+  assert.equal(panel.response, "A completed translation"); assert.equal(panel.canSave, true);
+  assert.match(panel.statuses.at(-1).text, /无法保存/);
+  await panel.callbacks.onSave(); assert.match(h.notes[0].html, /A valid source/);
 });

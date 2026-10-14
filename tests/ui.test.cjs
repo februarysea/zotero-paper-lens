@@ -179,6 +179,37 @@ test("the host can keep an incomplete answer unsavable after streaming stops", (
   panel.dispose();
 });
 
+test("retry becomes Retranslate for complete and restored translations while incomplete output stays Retry", () => {
+  for (const locale of ["zh-CN", "en-US"]) {
+    let retried = 0;
+    const { panel, find } = panelHarness({ onRetry: () => retried++ }, { locale });
+    const retry = find("paper-lens-result-tools").children[0];
+    panel.setPaper({ title: "A paper", attachmentKey: "ABCD1234" });
+    assert.equal(retry.disabled, true);
+    panel.setCanSave(false);
+    panel.setBusy(true);
+    panel.setResponse("Partial translation");
+    assert.equal(retry.disabled, true);
+    assert.equal(retry.textContent, I18n.create(locale).t("ui.retry"));
+    panel.setBusy(false);
+    assert.equal(retry.textContent, I18n.create(locale).t("ui.retry"));
+    retry.fire("click"); assert.equal(retried, 1);
+    panel.setResponse("Complete translation"); panel.setCanSave(true);
+    assert.equal(retry.textContent, I18n.create(locale).t("ui.retranslate"));
+    retry.fire("click"); assert.equal(retried, 2);
+    panel.dispose();
+
+    const restored = panelHarness({ onRetry: () => retried++ }, { locale });
+    restored.panel.setPaper({ title: "A paper", attachmentKey: "ABCD1234" });
+    restored.panel.setResponse("Restored complete translation"); restored.panel.setCanSave(true);
+    const restoredRetry = restored.find("paper-lens-result-tools").children[0];
+    assert.equal(restoredRetry.disabled, false);
+    assert.equal(restoredRetry.textContent, I18n.create(locale).t("ui.retranslate"));
+    restoredRetry.fire("click"); assert.equal(retried, 3);
+    restored.panel.dispose();
+  }
+});
+
 test("stopping a stream blocks note saves until a complete response is explicitly allowed", () => {
   const saved = [];
   let cancelled = 0;

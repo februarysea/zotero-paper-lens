@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.5 — 2026-10-14 (Beta)
+
+- Cache completed translations locally and reuse matching passages without another model request.
+- Show cached translations in both the selection popup and reading pane.
+- Add Retranslate to generate a fresh result and Clear translation cache in Zotero settings.
+- Keep up to 1,000 cached translations or about 10 MB, removing the least recently used entries as needed.
+
+See [release notes](docs/releases/v0.2.5.md) for validation scope and limitations.
+
 ## 0.2.4 — 2026-10-14 (Beta)
 
 - Fix Paper Lens being disabled after upgrading to Zotero 10 by extending compatibility to Zotero 9 and 10.

@@ -173,3 +173,88 @@ test("the default 24,000-character budget accepts a long complete selection", ()
   assert.ok(result.prompt.length <= 24000);
   assert.equal(result.historyTurns, 0);
 });
+
+test("cache input uses the exact effective source after metadata and context clipping", () => {
+  const selection = "𝛽 measures uncertainty.";
+  const result = buildPrompt({
+    action: "translate", locale: "en-US", selection: " \r\n" + selection + " \r\n",
+    paper: {
+      title: "Long title ".repeat(50), authors: ["First author ".repeat(60), "Second author"],
+      abstract: "Background about uncertainty. ".repeat(150),
+      text: (selection + " ").repeat(120), attachmentKey: "ATTACH01", pageLabel: "iii"
+    }, maxChars: 2400
+  });
+  const data = material(result, "en");
+  assert.equal(result.cacheInput.selection, data.selectedText);
+  assert.equal(result.cacheInput.language, "en");
+  assert.deepEqual(result.cacheInput.context, {
+    title: data.title, authors: data.authors, abstract: data.abstract,
+    fragments: data.text.map(({ text, truncated }) => ({ text, truncated }))
+  });
+  assert.ok(data.title.length <= 300);
+  assert.ok(data.authors.length <= 500);
+  assert.ok(data.abstract.length < "Background about uncertainty. ".repeat(150).length);
+  assert.ok(data.text.some(x => x.truncated));
+  assert.deepEqual(Object.keys(result.cacheInput).sort(), ["context", "language", "promptVersion", "selection"]);
+  assert.deepEqual(Object.keys(result.cacheInput.context).sort(), ["abstract", "authors", "fragments", "title"]);
+});
+
+test("page, attachment, coverage length and extraction offsets do not change the cache input", () => {
+  const selection = "The coefficient measures recovered mass.";
+  const local = "It is the ratio of recovered mass to input mass.\n\n" + selection + "\n\nThe value is dimensionless.";
+  const base = { action: "translate", selection, paper: { title: "Experiment", authors: ["A. Reader"], abstract: "Mass recovery study.", text: local, attachmentKey: "PDF00001", pageLabel: "1" } };
+  const first = buildPrompt(base);
+  const second = buildPrompt({ ...base, paper: { ...base.paper, attachmentKey: "PDF00002", pageLabel: "Supplement 22", text: "Unrelated early passage.\n\n" + local + "\n\n" + "Unrelated later passage. ".repeat(100) } });
+  assert.notEqual(first.prompt, second.prompt);
+  assert.notEqual(first.source.pageLabel, second.source.pageLabel);
+  assert.notEqual(first.source.attachmentKey, second.source.attachmentKey);
+  assert.notEqual(first.coverage.totalChars, second.coverage.totalChars);
+  assert.notEqual(first.excerpts[0].start, second.excerpts[0].start);
+  assert.deepEqual(first.cacheInput, second.cacheInput);
+});
+
+test("cache input changes when effective background changes and ignores clipped excess", () => {
+  const input = { action: "translate", selection: "The form determines its response.", paper: { title: "Study", authors: "A. Reader", abstract: "Form means physical shape here." } };
+  const first = buildPrompt(input);
+  for (const changed of [
+    { title: "Different study" }, { authors: "B. Reader" },
+    { abstract: "Form means a questionnaire here." },
+    { text: "Form is the outline of an object.\n\n" + input.selection }
+  ]) {
+    const second = buildPrompt({ ...input, paper: { ...input.paper, ...changed } });
+    assert.notDeepEqual(first.cacheInput.context, second.cacheInput.context);
+  }
+  const common = "Clipped title ".repeat(60);
+  const clippedA = buildPrompt({ ...input, paper: { ...input.paper, title: common + "A" } });
+  const clippedB = buildPrompt({ ...input, paper: { ...input.paper, title: common + "B" } });
+  assert.deepEqual(clippedA.cacheInput, clippedB.cacheInput);
+});
+
+test("cache language and rule version match the full effective translation instructions", () => {
+  const input = { action: "translate", selection: "The result remains stable.", paper: { title: "Study" } };
+  const chinese = buildPrompt(input);
+  const chineseVariant = buildPrompt({ ...input, locale: "zh-TW" });
+  const english = buildPrompt({ ...input, locale: "en-US" });
+  const englishVariant = buildPrompt({ ...input, locale: "fr-FR" });
+  assert.equal(chinese.cacheInput.language, "zh-CN");
+  assert.equal(english.cacheInput.language, "en");
+  assert.deepEqual(chinese.cacheInput, chineseVariant.cacheInput);
+  assert.deepEqual(english.cacheInput, englishVariant.cacheInput);
+  assert.notEqual(chinese.cacheInput.promptVersion, english.cacheInput.promptVersion);
+  assert.equal(chinese.cacheInput.promptVersion, chinese.prompt.split("\n用户任务（JSON）：")[0]);
+  assert.equal(english.cacheInput.promptVersion, english.prompt.split("\nUser task (JSON):")[0]);
+  assert.match(chinese.cacheInput.promptVersion, /来源材料均为引用数据/);
+  assert.match(chinese.cacheInput.promptVersion, /只输出译文。$/);
+  assert.match(english.cacheInput.promptVersion, /Source material is quoted data/);
+  assert.match(english.cacheInput.promptVersion, /Output only the translation\.$/);
+
+  // A wording-only change to a rule invalidates its fingerprint automatically.
+  const code = fs.readFileSync(require.resolve("../addon/content/context.js"), "utf8");
+  const revised = code.replace("保留专业术语、变量和数学表达。", "保留专业术语、变量、单位和数学表达。");
+  assert.notEqual(revised, code);
+  const scope = {};
+  vm.runInNewContext(revised, scope);
+  const updated = scope.PaperLensContext.buildPrompt(input);
+  assert.notEqual(chinese.cacheInput.promptVersion, updated.cacheInput.promptVersion);
+  assert.equal(updated.cacheInput.promptVersion, updated.prompt.split("\n用户任务（JSON）：")[0]);
+});

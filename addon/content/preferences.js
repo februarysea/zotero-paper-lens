@@ -4,9 +4,10 @@ var PaperLensPreferences = (function () {
   const XHTML = "http://www.w3.org/1999/xhtml", LUNA = "gpt-6-luna", NEW_ACCOUNT = "__new__";
   const validModel = value => typeof value === "string" && value !== "codex-default" && /^[A-Za-z0-9._-]{1,128}$/.test(value);
   function create({ document, Zotero }) {
-    let root, model, refreshButton, modelStatus, account, authStatus, signIn, signOut, cancel, usage;
+    let root, model, refreshButton, modelStatus, account, authStatus, signIn, signOut, cancel, usage, cacheClear, cacheStatus;
     let sequence = 0, authSequence = 0, disposed = false, initialized = false, busy = false, actionKind = null;
     let choosingNew = false;
+    let cacheBusy = false;
     let authState = { accounts: [], connected: false, planEnabled: false };
     const listeners = [];
     function listen(target, name, callback) {
@@ -132,6 +133,20 @@ var PaperLensPreferences = (function () {
         }
       }
     }
+    async function clearCache() {
+      if (cacheBusy || !live()) return;
+      cacheBusy = true; cacheClear.disabled = true;
+      localize(cacheStatus, "paper-lens-preferences-cache-clearing");
+      try {
+        await Zotero.PaperLens.clearTranslationCache();
+        localize(cacheStatus, "paper-lens-preferences-cache-cleared");
+      } catch (_) {
+        localize(cacheStatus, "paper-lens-preferences-cache-clear-failed");
+      } finally {
+        cacheBusy = false;
+        if (live()) cacheClear.disabled = false;
+      }
+    }
     async function init(event) {
       if (initialized || disposed) return;
       root = document.getElementById("paperlens-preferences");
@@ -139,7 +154,8 @@ var PaperLensPreferences = (function () {
       model = find("model"); refreshButton = find("model-refresh"); modelStatus = find("model-status");
       account = find("account"); authStatus = find("auth-status"); signIn = find("sign-in"); signOut = find("sign-out");
       cancel = find("auth-cancel"); usage = find("usage");
-      if (![root, model, refreshButton, modelStatus, account, authStatus, signIn, signOut, cancel, usage].every(Boolean)) return;
+      cacheClear = find("cache-clear"); cacheStatus = find("cache-status");
+      if (![root, model, refreshButton, modelStatus, account, authStatus, signIn, signOut, cancel, usage, cacheClear, cacheStatus].every(Boolean)) return;
       initialized = true;
       listen(refreshButton, "click", () => syncAuth(true));
       listen(model, "syncfrompreference", syncModel);
@@ -150,6 +166,7 @@ var PaperLensPreferences = (function () {
         if (!busy) return syncAuth();
       });
       listen(usage, "click", () => Zotero.PaperLens.openUsage());
+      listen(cacheClear, "click", clearCache);
       listen(account, "change", () => {
         choosingNew = account.value === NEW_ACCOUNT;
         if (choosingNew) { localize(authStatus, "paper-lens-preferences-auth-new"); controls(); return; }

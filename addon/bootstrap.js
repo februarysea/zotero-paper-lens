@@ -21,7 +21,7 @@ async function startup({ id, version, rootURI }) {
     TextDecoder: win.TextDecoder, TextEncoder: win.TextEncoder,
     setTimeout: win.setTimeout.bind(win), clearTimeout: win.clearTimeout.bind(win),
   };
-  for (const file of ["i18n.js", "oauth.js", "loopback.js", "auth.js", "settings.js", "context.js", "codex.js", "ui.js", "popup.js", "selection.js", "main.js"]) {
+  for (const file of ["i18n.js", "oauth.js", "loopback.js", "auth.js", "settings.js", "context.js", "cache.js", "codex.js", "ui.js", "popup.js", "selection.js", "main.js"]) {
     services.scriptloader.loadSubScript(rootURI + "content/" + file, paperLensScope, "UTF-8");
   }
   Zotero.PaperLens = paperLensScope.PaperLensMain.create({ id, version, rootURI, env: paperLensScope });
