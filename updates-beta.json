@@ -3,6 +3,17 @@
     "paper-lens@februarysea.github.io": {
       "updates": [
         {
+          "version": "0.2.4",
+          "update_link": "https://github.com/februarysea/zotero-paper-lens/releases/download/v0.2.4/paper-lens-0.2.4.xpi",
+          "update_hash": "sha256:1c03004059b95265c00b803827753071dd058418592254d9d9e2e2146e90c7a2",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "9.0",
+              "strict_max_version": "10.0.*"
+            }
+          }
+        },
+        {
           "version": "0.2.3",
           "update_link": "https://github.com/februarysea/zotero-paper-lens/releases/download/v0.2.3/paper-lens-0.2.3.xpi",
           "update_hash": "sha256:53e81ad618e2a4ad4e40b5d6eb194d112dcf9b4cf4a78f838f8974daab6a72e0",
