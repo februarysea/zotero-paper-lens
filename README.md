@@ -13,7 +13,7 @@ Translate selected PDF text in Zotero with Codex models.
 
 ## Installation
 
-Requires **Zotero 9**. Currently tested in Zotero on macOS.
+Requires **Zotero 9 or 10**. Currently tested in Zotero on macOS.
 
 Download the latest Beta from the [Releases page](https://github.com/februarysea/zotero-paper-lens/releases).
 

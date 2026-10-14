@@ -111,7 +111,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(metadata["sha256"], hashlib.sha256(assets[0].read_bytes()).hexdigest())
         entry = release.read_json(self.root / "dist/updates-beta.json")["addons"][release.PLUGIN_ID]["updates"][0]
         self.assertEqual(entry, release.update_entry(config, metadata["sha256"]))
-        self.assertEqual(entry["applications"]["zotero"], {"strict_min_version": "9.0", "strict_max_version": "9.0.*"})
+        self.assertEqual(entry["applications"]["zotero"], {"strict_min_version": "9.0", "strict_max_version": "10.0.*"})
         self.assertEqual(notes.read_bytes(), config["notes"].read_bytes())
         self.assertEqual(beta, (self.root / "updates-beta.json").read_bytes())
         self.assertEqual(stable, (self.root / "updates.json").read_bytes())
@@ -163,7 +163,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "gh", side_effect=fake_gh) as network:
             release.draft(self.root)
         arguments = network.call_args_list[-1].args[0]
-        self.assertEqual(arguments[:3], ["release", "create", "v0.2.3"])
+        self.assertEqual(arguments[:3], ["release", "create", release.configuration(self.root)["tag"]])
         self.assertIn("--draft", arguments)
         self.assertIn("--prerelease", arguments)
         self.assertEqual(arguments[arguments.index("--target") + 1], COMMIT)
@@ -214,7 +214,7 @@ class ReleaseTests(unittest.TestCase):
         stable = (self.root / "updates.json").read_bytes()
         release.promote_manifest(self.root, config, self.published(config, metadata), self.root / "dist")
         updated = release.read_json(self.root / "updates-beta.json")["addons"][release.PLUGIN_ID]["updates"]
-        self.assertEqual([item["version"] for item in updated], ["0.2.3", "0.2.2"])
+        self.assertEqual([item["version"] for item in updated], [config["version"], "0.2.2"])
         self.assertEqual(updated[1], older)
         self.assertEqual(stable, (self.root / "updates.json").read_bytes())
         release.promote_manifest(self.root, config, self.published(config, metadata), self.root / "dist")

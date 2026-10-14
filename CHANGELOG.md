@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4 — 2026-10-14 (Beta)
+
+- Fix Paper Lens being disabled after upgrading to Zotero 10 by extending compatibility to Zotero 9 and 10.
+- Keep the same addon ID, account authorization, preferences and translation behavior.
+- Verify loading and automatic selection translation on macOS / Zotero 10.0.6.
+
+See [release notes](docs/releases/v0.2.4.md) for validation scope and limitations.
+
 ## 0.2.3 — 2026-10-12 (Beta)
 
 - Translate selected PDF text with Codex models through independent ChatGPT authorization.

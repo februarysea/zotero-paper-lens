@@ -1,6 +1,6 @@
 # Privacy / 隐私说明
 
-Applies to Paper Lens 0.2.3. / 适用于 Paper Lens 0.2.3。
+Applies to Paper Lens 0.2.x. / 适用于 Paper Lens 0.2.x。
 
 ## 发送哪些数据
 

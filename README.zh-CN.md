@@ -13,7 +13,7 @@
 
 ## 安装
 
-需要 **Zotero 9**，目前已在 macOS 的 Zotero 中验证。
+需要 **Zotero 9 或 10**，目前已在 macOS 的 Zotero 中验证。
 
 从 [Releases 页面](https://github.com/februarysea/zotero-paper-lens/releases)下载最新 Beta 安装包。
 
